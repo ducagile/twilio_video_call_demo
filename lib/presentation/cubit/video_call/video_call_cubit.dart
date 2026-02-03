@@ -1,0 +1,135 @@
+import 'dart:async';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../domain/entities/call_state.dart';
+import '../../../domain/repositories/video_call_repository.dart';
+import 'video_call_state.dart';
+
+/// Cubit quản lý state của video call
+/// Cubit đơn giản hơn Bloc vì không cần Events, chỉ cần methods
+class VideoCallCubit extends Cubit<VideoCallState> {
+  final VideoCallRepository _repository;
+  StreamSubscription<CallState>? _callStateSubscription;
+  StreamSubscription<List<CallUser>>? _usersSubscription;
+  StreamSubscription<String>? _logSubscription;
+
+  VideoCallCubit(this._repository) : super(const VideoCallState()) {
+    _listenToRepositoryStreams();
+  }
+
+  /// Khởi tạo engine
+  Future<void> initializeEngine(String appId) async {
+    try {
+      await _repository.initialize(appId);
+      emit(state.copyWith(callState: CallState.idle));
+    } catch (e) {
+      emit(state.copyWith(
+        callState: CallState.error,
+        errorMessage: 'Lỗi khởi tạo: $e',
+      ));
+    }
+  }
+
+  /// Tham gia channel
+  Future<void> joinChannel({
+    required String channelName,
+    String? token,
+    int? uid,
+  }) async {
+    try {
+      await _repository.joinChannel(
+        channelName: channelName,
+        token: token,
+        uid: uid,
+      );
+    } catch (e) {
+      emit(state.copyWith(
+        callState: CallState.error,
+        errorMessage: 'Lỗi tham gia channel: $e',
+      ));
+    }
+  }
+
+  /// Rời channel
+  Future<void> leaveChannel() async {
+    try {
+      await _repository.leaveChannel();
+    } catch (e) {
+      emit(state.copyWith(
+        errorMessage: 'Lỗi rời channel: $e',
+      ));
+    }
+  }
+
+  /// Toggle mute (bật/tắt microphone)
+  Future<void> toggleMute() async {
+    try {
+      final newMuted = !state.isMuted;
+      await _repository.toggleMute(newMuted);
+      emit(state.copyWith(isMuted: newMuted));
+    } catch (e) {
+      emit(state.copyWith(
+        errorMessage: 'Lỗi toggle mute: $e',
+      ));
+    }
+  }
+
+  /// Toggle video (bật/tắt camera)
+  Future<void> toggleVideo() async {
+    try {
+      final newEnabled = !state.isVideoEnabled;
+      await _repository.toggleVideo(newEnabled);
+      emit(state.copyWith(isVideoEnabled: newEnabled));
+    } catch (e) {
+      emit(state.copyWith(
+        errorMessage: 'Lỗi toggle video: $e',
+      ));
+    }
+  }
+
+  /// Chuyển camera (front/back)
+  Future<void> switchCamera() async {
+    try {
+      await _repository.switchCamera();
+    } catch (e) {
+      emit(state.copyWith(
+        errorMessage: 'Lỗi chuyển camera: $e',
+      ));
+    }
+  }
+
+  /// Dispose resources
+  Future<void> dispose() async {
+    await _callStateSubscription?.cancel();
+    await _usersSubscription?.cancel();
+    await _logSubscription?.cancel();
+    await _repository.dispose();
+  }
+
+  /// Listen to repository streams và cập nhật state
+  void _listenToRepositoryStreams() {
+    _callStateSubscription = _repository.callStateStream.listen((callState) {
+      emit(state.copyWith(callState: callState));
+    });
+
+    _usersSubscription = _repository.usersStream.listen((users) {
+      emit(state.copyWith(users: users));
+    });
+
+    _logSubscription = _repository.logStream.listen((log) {
+      final logs = [...state.logs, log];
+      // Giới hạn 50 logs
+      if (logs.length > 50) {
+        logs.removeAt(0);
+      }
+      emit(state.copyWith(logs: logs));
+    });
+  }
+
+  @override
+  Future<void> close() {
+    _callStateSubscription?.cancel();
+    _usersSubscription?.cancel();
+    _logSubscription?.cancel();
+    return super.close();
+  }
+}
