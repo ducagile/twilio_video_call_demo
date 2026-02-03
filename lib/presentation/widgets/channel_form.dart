@@ -15,6 +15,7 @@ class ChannelForm extends StatefulWidget {
 
 class _ChannelFormState extends State<ChannelForm> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _channelController = TextEditingController(
     text: AppConfig.defaultChannelName,
   );
@@ -22,6 +23,7 @@ class _ChannelFormState extends State<ChannelForm> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _channelController.dispose();
     super.dispose();
   }
@@ -80,6 +82,24 @@ class _ChannelFormState extends State<ChannelForm> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
+          TextFormField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              labelText: 'Tên của bạn',
+              hintText: 'Nhập tên hiển thị',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.person),
+            ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Vui lòng nhập tên của bạn';
+              }
+              return null;
+            },
+            textCapitalization: TextCapitalization.words,
+            enabled: !_isLoading,
+          ),
+          const SizedBox(height: 16),
           TextFormField(
             controller: _channelController,
             decoration: const InputDecoration(

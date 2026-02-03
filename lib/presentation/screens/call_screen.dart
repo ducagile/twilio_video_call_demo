@@ -65,7 +65,7 @@ class CallScreen extends StatelessWidget {
                       onSwitchCamera: () => cubit.switchCamera(),
                       onLeave: () {
                         cubit.leaveChannel();
-                        context.pop();
+                        context.go('/dashboard');
                       },
                     ),
                   ),
