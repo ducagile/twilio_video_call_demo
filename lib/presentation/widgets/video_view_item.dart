@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
-import 'package:twilio_video_call_demo/domain/entities/call_state.dart';
+import '../../domain/entities/call_state.dart';
 import '../../domain/repositories/video_call_repository.dart';
 
 /// Widget hiển thị video của một người dùng
@@ -22,6 +22,7 @@ class _VideoViewItemState extends State<VideoViewItem> {
   Widget build(BuildContext context) {
     final repository = context.read<VideoCallRepository>();
     final engine = repository.engine;
+    final channelId = repository.currentChannelId ?? '';
 
     if (engine == null) {
       return Container(
@@ -60,21 +61,23 @@ class _VideoViewItemState extends State<VideoViewItem> {
                         rtcEngine: engine,
                         canvas: VideoCanvas(uid: widget.user.uid),
                         connection: RtcConnection(
-                          channelId: '',
-                          localUid: 0,
+                          channelId: channelId,
                         ),
                         useFlutterTexture: true,
                       ),
                     ),
             )
           else
-            // Placeholder khi video bị tắt
+            // Ảnh default khi video bị tắt
             Container(
               color: Colors.grey[800],
-              child: const Icon(
-                Icons.person,
-                size: 64,
-                color: Colors.grey,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: const Icon(
+                  Icons.person,
+                  size: 64,
+                  color: Colors.grey,
+                ),
               ),
             ),
 

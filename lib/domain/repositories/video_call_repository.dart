@@ -7,6 +7,9 @@ abstract class VideoCallRepository {
   /// Get RtcEngine instance (nullable)
   RtcEngine? get engine;
 
+  /// Channel hiện tại đang join (nullable nếu chưa join)
+  String? get currentChannelId;
+
   /// Khởi tạo engine
   Future<void> initialize(String appId);
 

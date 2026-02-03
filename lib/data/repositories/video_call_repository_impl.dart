@@ -18,9 +18,13 @@ class VideoCallRepositoryImpl implements VideoCallRepository {
   int? _localUid;
   bool _isMuted = false;
   bool _isVideoEnabled = true;
+  String? _currentChannelId;
 
   @override
   RtcEngine? get engine => _engine;
+
+  @override
+  String? get currentChannelId => _currentChannelId;
 
   @override
   Future<void> initialize(String appId) async {
@@ -63,6 +67,7 @@ class VideoCallRepositoryImpl implements VideoCallRepository {
 
       _updateState(CallState.connecting);
       _addLog('Đang tham gia channel: $channelName');
+      _currentChannelId = channelName;
 
       await _engine!.joinChannel(
         token: token ?? '',
@@ -98,7 +103,8 @@ class VideoCallRepositoryImpl implements VideoCallRepository {
   @override
   Future<void> toggleMute(bool muted) async {
     try {
-      await _engine?.muteLocalAudioStream(muted);
+      // Tắt/bật audio local (capture + send)
+      await _engine?.enableLocalAudio(!muted);
       _isMuted = muted;
 
       if (_localUid != null) {
@@ -118,7 +124,8 @@ class VideoCallRepositoryImpl implements VideoCallRepository {
   @override
   Future<void> toggleVideo(bool enabled) async {
     try {
-      await _engine?.muteLocalVideoStream(!enabled);
+      // Tắt/bật video local (capture + send)
+      await _engine?.enableLocalVideo(enabled);
       _isVideoEnabled = enabled;
 
       if (_localUid != null) {
