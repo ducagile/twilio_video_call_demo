@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:twilio_video_call_demo/presentation/bloc/session/session_bloc.dart';
 import '../widgets/appointment_card.dart';
+import 'dart:developer' as developer;
 
 /// Màn hình dashboard chính (demo telehealth)
 class HomeDashboardScreen extends StatelessWidget {
@@ -214,7 +217,9 @@ class _UpcomingSection extends StatelessWidget {
 
     void handleJoin() {
       // Điều hướng sang màn hình cấu hình channel/name trước khi join call
-      context.push('/');
+      developer.log(
+          ' context.read<SessionBloc>().state.userId : ${context.read<SessionBloc>().state.userId}',
+          name: 'HomeDashboardScreen');
     }
 
     return Padding(
