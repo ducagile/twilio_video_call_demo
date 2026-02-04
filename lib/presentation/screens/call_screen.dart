@@ -2,20 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:twilio_video_call_demo/presentation/cubit/video_call/video_call_state.dart';
-import '../../core/config/app_config.dart';
 import '../cubit/video_call/video_call_cubit.dart';
 import '../widgets/video_view_grid.dart';
 import '../widgets/call_toolbar.dart';
 import '../widgets/call_logs_panel.dart';
 import '../../../domain/entities/call_state.dart';
 
-/// Màn hình cuộc gọi video
+/// Màn hình cuộc gọi video. Token được lấy qua API khi [joinChannel].
 class CallScreen extends StatelessWidget {
   final String channelName;
+
+  /// UID Agora (gửi lên API token và dùng khi join). Null thì dùng 0.
+  final int? uid;
 
   const CallScreen({
     super.key,
     required this.channelName,
+    this.uid,
   });
 
   @override
@@ -35,12 +38,11 @@ class CallScreen extends StatelessWidget {
         builder: (context, state) {
           final cubit = context.read<VideoCallCubit>();
 
-          // Join channel khi màn hình được load và state là idle
+          // Join channel khi màn hình được load và state là idle (Cubit sẽ gọi API lấy token rồi join)
           if (state.callState == CallState.idle) {
             cubit.joinChannel(
               channelName: channelName,
-              token: AppConfig.agoraToken,
-              uid: 0,
+              uid: uid,
             );
           }
 
@@ -71,13 +73,13 @@ class CallScreen extends StatelessWidget {
                   ),
 
                   // Logs panel (có thể toggle)
-                  if (state.logs.isNotEmpty)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      right: 8,
-                      child: CallLogsPanel(logs: state.logs),
-                    ),
+                  // if (state.logs.isNotEmpty)
+                  //   Positioned(
+                  //     top: 8,
+                  //     left: 8,
+                  //     right: 8,
+                  //     child: CallLogsPanel(logs: state.logs),
+                  //   ),
 
                   // Loading indicator
                   if (state.callState == CallState.connecting)

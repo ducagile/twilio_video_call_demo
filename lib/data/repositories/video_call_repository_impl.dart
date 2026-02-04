@@ -27,6 +27,9 @@ class VideoCallRepositoryImpl implements VideoCallRepository {
   String? get currentChannelId => _currentChannelId;
 
   @override
+  int? get localUid => _localUid;
+
+  @override
   Future<void> initialize(String appId) async {
     try {
       _engine = createAgoraRtcEngine();

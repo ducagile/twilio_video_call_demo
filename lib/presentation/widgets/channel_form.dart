@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../cubit/video_call/video_call_cubit.dart';
 import '../../core/config/app_config.dart';
+import '../../core/local/user_preferences.dart';
 
 /// Form để nhập tên channel và tham gia cuộc gọi
 class ChannelForm extends StatefulWidget {
@@ -22,6 +23,16 @@ class _ChannelFormState extends State<ChannelForm> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    UserPreferences.getAgoraJoinName().then((name) {
+      if (mounted && name != null && name.trim().isNotEmpty) {
+        _nameController.text = name.trim();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _channelController.dispose();
@@ -35,26 +46,36 @@ class _ChannelFormState extends State<ChannelForm> {
     ].request();
   }
 
+  /// Tạo Agora UID từ tên (cùng tên → cùng UID trong phiên), thêm entropy theo thời gian để tránh trùng.
+  static int _agoraUidFromName(String name) {
+    final base = name.isEmpty ? 0 : name.hashCode.abs();
+    final entropy = DateTime.now().millisecondsSinceEpoch % 10000;
+    return base + entropy;
+  }
+
   Future<void> _onJoin() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Yêu cầu quyền truy cập
       await _requestPermissions();
 
       final channelName = _channelController.text.trim();
+      // Agora UID: gửi lên API token và dùng khi join (Cubit sẽ gọi API lấy token trong joinChannel).
+      final agoraUid = (_agoraUidFromName(_nameController.text.trim()) %
+              10000000)
+          .clamp(1, 9999999);
+
       final cubit = context.read<VideoCallCubit>();
-
-      // Khởi tạo engine nếu chưa được khởi tạo
       await cubit.initializeEngine(AppConfig.agoraAppId);
-
-      // Đợi một chút để engine khởi tạo
       await Future.delayed(const Duration(milliseconds: 500));
 
       if (mounted) {
-        context.push('/call/$channelName');
+        context.push(
+          '/call/$channelName',
+          extra: <String, dynamic>{'uid': agoraUid},
+        );
       }
     } catch (e) {
       if (mounted) {

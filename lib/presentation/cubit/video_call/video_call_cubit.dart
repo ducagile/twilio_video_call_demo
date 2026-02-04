@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/entities/call_state.dart';
+import '../../../domain/repositories/agora_token_repository.dart';
 import '../../../domain/repositories/video_call_repository.dart';
 import 'video_call_state.dart';
 
@@ -8,11 +9,13 @@ import 'video_call_state.dart';
 /// Cubit đơn giản hơn Bloc vì không cần Events, chỉ cần methods
 class VideoCallCubit extends Cubit<VideoCallState> {
   final VideoCallRepository _repository;
+  final AgoraTokenRepository _tokenRepository;
   StreamSubscription<CallState>? _callStateSubscription;
   StreamSubscription<List<CallUser>>? _usersSubscription;
   StreamSubscription<String>? _logSubscription;
 
-  VideoCallCubit(this._repository) : super(const VideoCallState()) {
+  VideoCallCubit(this._repository, this._tokenRepository)
+      : super(const VideoCallState()) {
     _listenToRepositoryStreams();
   }
 
@@ -29,17 +32,23 @@ class VideoCallCubit extends Cubit<VideoCallState> {
     }
   }
 
-  /// Tham gia channel
+  /// Tham gia channel. Gọi API lấy token rồi mới join.
+  /// [uid] dùng cho Agora và gửi lên API token (mặc định 0).
   Future<void> joinChannel({
     required String channelName,
-    String? token,
     int? uid,
   }) async {
     try {
+      final effectiveUid = uid ?? 0;
+      // Gọi API lấy token trước khi join
+      final token = await _tokenRepository.getToken(
+        uid: effectiveUid.toString(),
+        channelName: channelName,
+      );
       await _repository.joinChannel(
         channelName: channelName,
         token: token,
-        uid: uid,
+        uid: effectiveUid,
       );
     } catch (e) {
       emit(state.copyWith(
@@ -108,11 +117,17 @@ class VideoCallCubit extends Cubit<VideoCallState> {
   /// Listen to repository streams và cập nhật state
   void _listenToRepositoryStreams() {
     _callStateSubscription = _repository.callStateStream.listen((callState) {
-      emit(state.copyWith(callState: callState));
+      emit(state.copyWith(
+        callState: callState,
+        localUid: _repository.localUid,
+      ));
     });
 
     _usersSubscription = _repository.usersStream.listen((users) {
-      emit(state.copyWith(users: users));
+      emit(state.copyWith(
+        users: users,
+        localUid: _repository.localUid,
+      ));
     });
 
     _logSubscription = _repository.logStream.listen((log) {

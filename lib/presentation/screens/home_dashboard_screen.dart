@@ -1,10 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/local/user_preferences.dart';
 import '../widgets/appointment_card.dart';
 
 /// Màn hình dashboard chính (demo telehealth)
-class HomeDashboardScreen extends StatelessWidget {
+class HomeDashboardScreen extends StatefulWidget {
   const HomeDashboardScreen({super.key});
+
+  @override
+  State<HomeDashboardScreen> createState() => _HomeDashboardScreenState();
+}
+
+class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
+  Future<String?> _displayNameFuture = UserPreferences.getDisplayName();
+
+  void _openProfileConfig() async {
+    await context.push('/onboarding', extra: {'edit': true});
+    if (mounted) {
+      setState(() {
+        _displayNameFuture = UserPreferences.getDisplayName();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,14 +32,17 @@ class HomeDashboardScreen extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              _DashboardHeader(),
-              SizedBox(height: 16),
-              _DashboardSearchBar(),
-              SizedBox(height: 24),
-              _UpcomingSection(),
-              SizedBox(height: 24),
-              _PastSection(),
+            children: [
+              _DashboardHeader(
+                displayNameFuture: _displayNameFuture,
+                onOpenProfileConfig: _openProfileConfig,
+              ),
+              const SizedBox(height: 16),
+              const _DashboardSearchBar(),
+              const SizedBox(height: 24),
+              const _UpcomingSection(),
+              const SizedBox(height: 24),
+              const _PastSection(),
             ],
           ),
         ),
@@ -32,7 +52,13 @@ class HomeDashboardScreen extends StatelessWidget {
 }
 
 class _DashboardHeader extends StatelessWidget {
-  const _DashboardHeader();
+  const _DashboardHeader({
+    required this.displayNameFuture,
+    required this.onOpenProfileConfig,
+  });
+
+  final Future<String?> displayNameFuture;
+  final VoidCallback onOpenProfileConfig;
 
   @override
   Widget build(BuildContext context) {
@@ -61,28 +87,55 @@ class _DashboardHeader extends StatelessWidget {
               const Spacer(),
               const _OnlineStatusToggle(),
               const SizedBox(width: 12),
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: colorScheme.onPrimaryContainer,
-                child: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: colorScheme.primary,
-                  child: Text(
-                    'F',
-                    style: textTheme.titleMedium?.copyWith(
-                      color: colorScheme.onPrimary,
-                    ),
-                  ),
+              IconButton(
+                onPressed: onOpenProfileConfig,
+                icon: const Icon(Icons.settings),
+                color: colorScheme.onPrimaryContainer,
+                tooltip: 'Cấu hình tên hiển thị',
+              ),
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: onOpenProfileConfig,
+                child: FutureBuilder<String?>(
+                  future: displayNameFuture,
+                  builder: (context, snapshot) {
+                    final name = snapshot.data?.trim() ?? 'User';
+                    final initial = name.isNotEmpty
+                        ? name[0].toUpperCase()
+                        : 'U';
+                    return CircleAvatar(
+                      radius: 20,
+                      backgroundColor: colorScheme.onPrimaryContainer,
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: colorScheme.primary,
+                        child: Text(
+                          initial,
+                          style: textTheme.titleMedium?.copyWith(
+                            color: colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            'Hi, Dr. Fred Mask',
-            style: textTheme.titleMedium?.copyWith(
-              color: colorScheme.onPrimaryContainer.withOpacity(0.9),
-            ),
+          FutureBuilder<String?>(
+            future: displayNameFuture,
+            builder: (context, snapshot) {
+              final name = snapshot.data?.trim();
+              return Text(
+                name != null && name.isNotEmpty
+                    ? 'Hi, $name'
+                    : 'Hi, User',
+                style: textTheme.titleMedium?.copyWith(
+                  color: colorScheme.onPrimaryContainer.withOpacity(0.9),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 4),
           Text(

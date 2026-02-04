@@ -10,6 +10,9 @@ abstract class VideoCallRepository {
   /// Channel hiện tại đang join (nullable nếu chưa join)
   String? get currentChannelId;
 
+  /// UID local do Agora gán/đang dùng (có sau khi join thành công).
+  int? get localUid;
+
   /// Khởi tạo engine
   Future<void> initialize(String appId);
 

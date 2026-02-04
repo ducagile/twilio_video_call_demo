@@ -9,6 +9,8 @@ class VideoCallState extends Equatable {
   final bool isMuted;
   final bool isVideoEnabled;
   final String? errorMessage;
+  /// UID của user hiện tại trong Agora (sau khi join thành công).
+  final int? localUid;
 
   const VideoCallState({
     this.callState = CallState.idle,
@@ -17,6 +19,7 @@ class VideoCallState extends Equatable {
     this.isMuted = false,
     this.isVideoEnabled = true,
     this.errorMessage,
+    this.localUid,
   });
 
   VideoCallState copyWith({
@@ -26,6 +29,7 @@ class VideoCallState extends Equatable {
     bool? isMuted,
     bool? isVideoEnabled,
     String? errorMessage,
+    int? localUid,
   }) {
     return VideoCallState(
       callState: callState ?? this.callState,
@@ -34,6 +38,7 @@ class VideoCallState extends Equatable {
       isMuted: isMuted ?? this.isMuted,
       isVideoEnabled: isVideoEnabled ?? this.isVideoEnabled,
       errorMessage: errorMessage,
+      localUid: localUid ?? this.localUid,
     );
   }
 
@@ -45,5 +50,6 @@ class VideoCallState extends Equatable {
         isMuted,
         isVideoEnabled,
         errorMessage,
+        localUid,
       ];
 }
