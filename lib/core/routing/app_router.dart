@@ -1,21 +1,16 @@
 import 'package:go_router/go_router.dart';
-import '../../presentation/screens/home_screen.dart';
+
 import '../../presentation/screens/call_screen.dart';
 import '../../presentation/screens/home_dashboard_screen.dart';
 import '../../presentation/screens/sign_in_screen.dart';
 
 /// Cấu hình routing cho ứng dụng.
-/// Tên user lấy từ data màn sign-in (lưu qua UserPreferences).
 final appRouter = GoRouter(
   initialLocation: '/sign-in',
   routes: [
     GoRoute(
       path: '/sign-in',
       builder: (context, state) => const SignInScreen(),
-    ),
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const HomeScreen(),
     ),
     GoRoute(
       path: '/dashboard',

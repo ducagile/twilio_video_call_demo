@@ -204,6 +204,17 @@ class VideoCallRepositoryImpl implements VideoCallRepository {
           _updateUsers();
           _addLog('Người dùng đã rời. UID: $remoteUid');
         },
+        onRemoteVideoStateChanged: (RtcConnection connection, int remoteUid,
+            RemoteVideoState state, RemoteVideoStateReason reason, int elapsed) {
+          final user = _users[remoteUid];
+          if (user == null) return;
+          final videoOn = state == RemoteVideoState.remoteVideoStateDecoding;
+          _users[remoteUid] = user.copyWith(isVideoEnabled: videoOn);
+          _updateUsers();
+          _addLog(
+            'Remote UID $remoteUid ${videoOn ? "bật" : "tắt"} camera',
+          );
+        },
         onError: (ErrorCodeType err, String msg) {
           _logger.e('Lỗi Agora: $err - $msg');
           _updateState(CallState.error);

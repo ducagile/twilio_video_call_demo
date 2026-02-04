@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:twilio_video_call_demo/core/platform/keep_screen_on.dart';
 import 'package:twilio_video_call_demo/presentation/cubit/video_call/video_call_state.dart';
 import '../cubit/video_call/video_call_cubit.dart';
 import '../widgets/video_view_grid.dart';
 import '../widgets/call_toolbar.dart';
-import '../widgets/call_logs_panel.dart';
 import '../../../domain/entities/call_state.dart';
 
 /// Màn hình cuộc gọi video. Token được lấy qua API khi [joinChannel].
-class CallScreen extends StatelessWidget {
+/// Khi đang ở màn này thì màn hình luôn sáng (native FLAG_KEEP_SCREEN_ON / idleTimerDisabled).
+class CallScreen extends StatefulWidget {
   final String channelName;
 
   /// UID Agora (gửi lên API token và dùng khi join). Null thì dùng 0.
@@ -22,8 +23,28 @@ class CallScreen extends StatelessWidget {
   });
 
   @override
+  State<CallScreen> createState() => _CallScreenState();
+}
+
+class _CallScreenState extends State<CallScreen> {
+  @override
+  void initState() {
+    super.initState();
+    KeepScreenOn.setEnabled(true);
+  }
+
+  @override
+  void dispose() {
+    KeepScreenOn.setEnabled(false);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BlocListener<VideoCallCubit, VideoCallState>(
+      listenWhen: (prev, curr) =>
+          prev.callState != curr.callState ||
+          prev.errorMessage != curr.errorMessage,
       listener: (context, state) {
         if (state.errorMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -33,6 +54,9 @@ class CallScreen extends StatelessWidget {
             ),
           );
         }
+        if (state.callState == CallState.disconnected) {
+          context.go('/dashboard');
+        }
       },
       child: BlocBuilder<VideoCallCubit, VideoCallState>(
         builder: (context, state) {
@@ -41,8 +65,8 @@ class CallScreen extends StatelessWidget {
           // Join channel khi màn hình được load và state là idle (Cubit sẽ gọi API lấy token rồi join)
           if (state.callState == CallState.idle) {
             cubit.joinChannel(
-              channelName: channelName,
-              uid: uid,
+              channelName: widget.channelName,
+              uid: widget.uid,
             );
           }
 

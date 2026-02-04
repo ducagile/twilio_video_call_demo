@@ -30,9 +30,6 @@ dependencies:
   # HTTP client cho API token
   dio: ^5.4.0
 
-  # Lưu config local (tên user, v.v.)
-  shared_preferences: ^2.2.2
-
   # UI utilities
   cupertino_icons: ^1.0.8
 

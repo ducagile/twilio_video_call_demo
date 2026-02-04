@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/local/user_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:twilio_video_call_demo/presentation/bloc/session/session_state.dart';
+
+import '../../core/config/app_config.dart';
+import '../../core/utils/agora_uid_utils.dart';
+import '../bloc/session/session_bloc.dart';
+import '../cubit/video_call/video_call_cubit.dart';
 import '../widgets/appointment_card.dart';
 
-/// Màn hình dashboard chính (demo telehealth)
+/// Màn hình dashboard chính (demo telehealth).
+/// UserId hiển thị lấy từ SessionBloc (màn sign-in).
+/// Bấm JOIN → vào call luôn (channel mặc định, uid từ SessionBloc).
 class HomeDashboardScreen extends StatefulWidget {
   const HomeDashboardScreen({super.key});
 
@@ -12,27 +21,75 @@ class HomeDashboardScreen extends StatefulWidget {
 }
 
 class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
-  Future<String?> _displayNameFuture = UserPreferences.getDisplayName();
+  bool _isJoining = false;
+
+  Future<void> _onJoin() async {
+    if (_isJoining) return;
+
+    setState(() => _isJoining = true);
+
+    try {
+      await [
+        Permission.camera,
+        Permission.microphone,
+      ].request();
+
+      final sessionState = context.read<SessionBloc>().state;
+      final channelName = AppConfig.defaultChannelName;
+      final agoraUid = agoraUidFromUserId(sessionState.userId);
+
+      final cubit = context.read<VideoCallCubit>();
+      await cubit.initializeEngine(AppConfig.agoraAppId);
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+
+      if (!mounted) return;
+      context.push(
+        '/call/$channelName',
+        extra: <String, dynamic>{'uid': agoraUid},
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isJoining = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _DashboardHeader(displayNameFuture: _displayNameFuture),
-              const SizedBox(height: 16),
-              const _DashboardSearchBar(),
-              const SizedBox(height: 24),
-              const _UpcomingSection(),
-              const SizedBox(height: 24),
-              const _PastSection(),
-            ],
-          ),
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _DashboardHeader(),
+                  const SizedBox(height: 16),
+                  const _DashboardSearchBar(),
+                  const SizedBox(height: 24),
+                  _UpcomingSection(onJoinPressed: _onJoin),
+                  const SizedBox(height: 24),
+                  const _PastSection(),
+                ],
+              ),
+            ),
+            if (_isJoining)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black26,
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -40,9 +97,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 }
 
 class _DashboardHeader extends StatelessWidget {
-  const _DashboardHeader({required this.displayNameFuture});
-
-  final Future<String?> displayNameFuture;
+  const _DashboardHeader();
 
   @override
   Widget build(BuildContext context) {
@@ -71,12 +126,12 @@ class _DashboardHeader extends StatelessWidget {
               const Spacer(),
               const _OnlineStatusToggle(),
               const SizedBox(width: 12),
-              FutureBuilder<String?>(
-                future: displayNameFuture,
-                builder: (context, snapshot) {
-                  final name = snapshot.data?.trim() ?? 'User';
+              BlocBuilder<SessionBloc, SessionState>(
+                buildWhen: (prev, curr) => prev.userId != curr.userId,
+                builder: (context, state) {
+                  final userId = state.userId?.trim() ?? 'User';
                   final initial =
-                      name.isNotEmpty ? name[0].toUpperCase() : 'U';
+                      userId.isNotEmpty ? userId[0].toUpperCase() : 'U';
                   return CircleAvatar(
                     radius: 20,
                     backgroundColor: colorScheme.onPrimaryContainer,
@@ -96,13 +151,13 @@ class _DashboardHeader extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          FutureBuilder<String?>(
-            future: displayNameFuture,
-            builder: (context, snapshot) {
-              final name = snapshot.data?.trim();
+          BlocBuilder<SessionBloc, SessionState>(
+            buildWhen: (prev, curr) => prev.userId != curr.userId,
+            builder: (context, state) {
+              final userId = state.userId?.trim();
               return Text(
-                name != null && name.isNotEmpty
-                    ? 'Hi, $name'
+                userId != null && userId.isNotEmpty
+                    ? 'Hi, $userId'
                     : 'Hi, User',
                 style: textTheme.titleMedium?.copyWith(
                   color: colorScheme.onPrimaryContainer.withOpacity(0.9),
@@ -231,17 +286,14 @@ class _DashboardSearchBar extends StatelessWidget {
 }
 
 class _UpcomingSection extends StatelessWidget {
-  const _UpcomingSection();
+  const _UpcomingSection({this.onJoinPressed});
+
+  final VoidCallback? onJoinPressed;
 
   @override
   Widget build(BuildContext context) {
     final now = TimeOfDay.now();
     final nowText = 'Today, ${now.format(context)}';
-
-    void handleJoin() {
-      // Điều hướng sang màn hình cấu hình channel/name trước khi join call
-      context.push('/');
-    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -250,7 +302,6 @@ class _UpcomingSection extends StatelessWidget {
         children: [
           const _SectionHeader(title: 'Upcoming Appointments'),
           const SizedBox(height: 12),
-          // Fake item trên cùng: appointment ngay bây giờ với nút JOIN
           AppointmentCard(
             name: 'Instant Consultation',
             email: 'Tap to join now',
@@ -259,7 +310,7 @@ class _UpcomingSection extends StatelessWidget {
             isUpcoming: true,
             actionLabel: 'JOIN',
             actionColor: Colors.green,
-            onActionPressed: handleJoin,
+            onActionPressed: onJoinPressed,
           ),
           AppointmentCard(
             name: 'Kyle William',

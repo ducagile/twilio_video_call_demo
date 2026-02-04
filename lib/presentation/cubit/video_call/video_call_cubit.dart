@@ -13,6 +13,7 @@ class VideoCallCubit extends Cubit<VideoCallState> {
   StreamSubscription<CallState>? _callStateSubscription;
   StreamSubscription<List<CallUser>>? _usersSubscription;
   StreamSubscription<String>? _logSubscription;
+  Timer? _leaveAfterRemoteLeftTimer;
 
   VideoCallCubit(this._repository, this._tokenRepository)
       : super(const VideoCallState()) {
@@ -60,6 +61,8 @@ class VideoCallCubit extends Cubit<VideoCallState> {
 
   /// Rời channel
   Future<void> leaveChannel() async {
+    _leaveAfterRemoteLeftTimer?.cancel();
+    _leaveAfterRemoteLeftTimer = null;
     try {
       await _repository.leaveChannel();
     } catch (e) {
@@ -108,6 +111,8 @@ class VideoCallCubit extends Cubit<VideoCallState> {
 
   /// Dispose resources
   Future<void> dispose() async {
+    _leaveAfterRemoteLeftTimer?.cancel();
+    _leaveAfterRemoteLeftTimer = null;
     await _callStateSubscription?.cancel();
     await _usersSubscription?.cancel();
     await _logSubscription?.cancel();
@@ -124,10 +129,26 @@ class VideoCallCubit extends Cubit<VideoCallState> {
     });
 
     _usersSubscription = _repository.usersStream.listen((users) {
+      final previousCount = state.users.length;
+      final hadExactlyTwo = previousCount == 2;
       emit(state.copyWith(
         users: users,
         localUid: _repository.localUid,
       ));
+      if (users.length >= 2) {
+        _leaveAfterRemoteLeftTimer?.cancel();
+        _leaveAfterRemoteLeftTimer = null;
+        return;
+      }
+      if (users.length == 1 && users.first.isLocalUser &&
+          state.callState == CallState.connected &&
+          hadExactlyTwo) {
+        _leaveAfterRemoteLeftTimer?.cancel();
+        _leaveAfterRemoteLeftTimer = Timer(const Duration(seconds: 5), () {
+          _leaveAfterRemoteLeftTimer = null;
+          leaveChannel();
+        });
+      }
     });
 
     _logSubscription = _repository.logStream.listen((log) {
@@ -142,6 +163,8 @@ class VideoCallCubit extends Cubit<VideoCallState> {
 
   @override
   Future<void> close() {
+    _leaveAfterRemoteLeftTimer?.cancel();
+    _leaveAfterRemoteLeftTimer = null;
     _callStateSubscription?.cancel();
     _usersSubscription?.cancel();
     _logSubscription?.cancel();
