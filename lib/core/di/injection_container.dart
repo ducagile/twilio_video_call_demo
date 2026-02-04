@@ -3,6 +3,7 @@ import 'package:provider/single_child_widget.dart';
 import '../../data/repositories/video_call_repository_impl.dart';
 import '../../domain/repositories/video_call_repository.dart';
 import '../../presentation/cubit/video_call/video_call_cubit.dart';
+import '../../presentation/bloc/session/session_bloc.dart';
 
 /// Dependency Injection container
 class InjectionContainer {
@@ -19,6 +20,11 @@ class InjectionContainer {
         create: (context) => VideoCallCubit(
           context.read<VideoCallRepository>(),
         ),
+      ),
+
+      // Session Bloc
+      BlocProvider<SessionBloc>(
+        create: (_) => SessionBloc(),
       ),
     ];
   }
